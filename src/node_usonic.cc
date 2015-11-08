@@ -13,16 +13,23 @@ namespace {
         const int32_t triggerPin = info[1]->ToInteger()->Value();
         const int32_t timeoutNs = info[2]->ToInteger()->Value() * 1000;
 
-        RPiGpio::setDirection(memory, echoPin, RPiGpio::INPUT);
+        // Setting Directionality
+        // RPiGpio::setDirection(memory, echoPin, RPiGpio::INPUT);
         RPiGpio::setDirection(memory, triggerPin, RPiGpio::OUTPUT);
 
+        // Start broadcasting noise
         RPiGpio::setLevel(memory, triggerPin, true);
-
+        
         if (RPiClock::setDelayNs(10000) == -1) {
             return Nan::ThrowError(Nan::NanErrnoException(errno, "getDistance", "", NULL));
         }
 
+        // Stops broadcasting
         RPiGpio::setLevel(memory, triggerPin, false);
+
+
+        // Switch pin to listen
+        RPiGpio::setDirection(memory, triggerPin, RPiGpio::INPUT);
 
         const int32_t loopStartNs = RPiClock::getNowNs();
 
@@ -42,7 +49,7 @@ namespace {
             if (RPiClock::getDurationNs(loopStartNs, signalStartNs) > timeoutNs) {
                 return info.GetReturnValue().Set(Nan::New<v8::Number>(-1));
             }
-        } while(RPiGpio::getLevel(memory, echoPin) == false);
+        } while(RPiGpio::getLevel(memory, triggerPin) == false);
 
         int32_t signalStopNs;
 
@@ -52,7 +59,7 @@ namespace {
             if (signalStopNs == -1) {
                 return Nan::ThrowError(Nan::NanErrnoException(errno, "getDistance", "", NULL));
             }
-        } while(RPiGpio::getLevel(memory, echoPin) == true);
+        } while(RPiGpio::getLevel(memory, triggerPin) == true);
 
         const double distance = (double) RPiClock::getDurationNs(signalStartNs, signalStopNs) / 58000.0;
 
